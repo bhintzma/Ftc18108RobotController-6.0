@@ -97,6 +97,7 @@ public class Mecanum_Driving extends LinearOpMode {
             // POV Mode uses left stick to go forward, and right stick to turn.
             // - This uses basic math to combine motions and is easier to drive straight.
             double xAxis =  gamepad1.right_stick_x;
+            xAxisPower = 0.3 * Range.clip(xAxis, -1.0, 1.0) ;
 
             // Tank Mode uses one stick to control each wheel.
             // - This requires no math, but it is hard to drive forward slowly and keep straight.
@@ -104,10 +105,10 @@ public class Mecanum_Driving extends LinearOpMode {
             // rightPower = -gamepad1.right_stick_y ;
 
             // Send calculated power to wheels
-            motor0.setPower(-xAxis);
-            motor1.setPower(xAxis);
-            motor2.setPower(xAxis);
-            motor3.setPower(-xAxis);
+            motor0.setPower(-xAxisPower);
+            motor1.setPower(xAxisPower);
+            motor2.setPower(xAxisPower);
+            motor3.setPower(-xAxisPower);
 
             // Show the elapsed game time and wheel power.
             telemetry.addData("Status", "Run Time: " + runtime.toString());
