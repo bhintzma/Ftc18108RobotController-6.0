@@ -35,6 +35,8 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
+import org.firstinspires.ftc.robotcontroller.external.samples.HardwarePushbot;
+
 
 /**
  * This file contains an minimal example of a Linear "OpMode". An OpMode is a 'program' that runs in either
@@ -49,9 +51,9 @@ import com.qualcomm.robotcore.util.Range;
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
 
-@TeleOp(name="Mecanum Driving", group="Linear Opmode")
+@TeleOp(name="Test_Function_Calls", group="Linear Opmode")
 // @Disabled
-public class Mecanum_Driving extends LinearOpMode {
+public class Test_Function_Calls extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
@@ -60,10 +62,42 @@ public class Mecanum_Driving extends LinearOpMode {
     private DcMotor motor2 = null;
     private DcMotor motor3 = null;
 
+    static final double     COUNTS_PER_MOTOR_REV    = 560 ;    // Encoder HD Hex Motor 20:1
+    static final double     DRIVE_GEAR_REDUCTION    = 2.0 ;     // This is < 1.0 if geared UP
+    static final double     WHEEL_DIAMETER_INCHES   = 4.0 ;     // For figuring circumference
+    static final double     COUNTS_PER_INCH         = (COUNTS_PER_MOTOR_REV * DRIVE_GEAR_REDUCTION) /
+            (WHEEL_DIAMETER_INCHES * 3.1415);
+    static final double     DRIVE_SPEED             = 0.6;
+    static final double     TURN_SPEED              = 0.5;
+
+    /*
+    public void driveStraightGyro() {
+
+        float my_speed;
+        float my_distance;
+
+        my_speed = 0.1;
+
+        // Send calculated power to wheels
+        motor0.setPower(my_speed);
+        motor1.setPower(my_speed);
+        motor2.setPower(my_speed);
+        motor3.setPower(my_speed);
+
+        while True {
+            // steering_correction = -1 * Kg * (gs.angle - start_gyro_angle)
+            // move_steering.on(steering_correction, my_speed)
+            motor_average = (fabs(LWheel.position) + fabs(RWheel.position)) / 2
+            #Stop driving when the average of the degrees on both wheels is >=Distance
+            if (motor_average) >=my_distance:
+            WheelShutdown()
+            break
+        }
+    }
+    */
+
     @Override
     public void runOpMode() {
-        telemetry.addData("Status", "Initialized");
-        telemetry.update();
 
         // Initialize the hardware variables. Note that the strings used here as parameters
         // to 'get' must correspond to the names assigned during the robot configuration
@@ -80,40 +114,66 @@ public class Mecanum_Driving extends LinearOpMode {
         motor2.setDirection(DcMotor.Direction.FORWARD);
         motor3.setDirection(DcMotor.Direction.REVERSE);
 
+
+        // Send telemetry message to signify robot waiting;
+        telemetry.addData("Status", "Resetting Encoders");    //
+        telemetry.update();
+
+        motor0.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        motor1.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        motor2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        motor3.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        /*
+        motor0.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        motor1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        motor2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        motor3.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        */
+
+        // Send telemetry message to indicate successful Encoder reset
+        telemetry.addData("Encoders:",  "M0: %3d M1:%3d M2:%3d M3:%3d",
+                motor0.getCurrentPosition(),
+                motor1.getCurrentPosition(),
+                motor2.getCurrentPosition(),
+                motor3.getCurrentPosition());
+        telemetry.update();
+
         // Wait for the game to start (driver presses PLAY)
         waitForStart();
         runtime.reset();
 
-        // Setup variables used during driving loop
-        // Drive wheel power to set motor speed and display telemetry
-        double wheelPower;
-        double xAxisPower;
-        double yAxisPower;
-        boolean toggleDriving; // True = Car Mode, False = Tank Mode
+        telemetry.setAutoClear(false);
+        telemetry.addData("Status", "Initialized");
+        telemetry.update();
+
+        // driveStraightGyro();
+
+        double my_speed = 0.1;
+        double my_distance = 200;
+
+        // Send calculated power to wheels
+        motor0.setPower(my_speed);
+        motor1.setPower(my_speed);
+        motor2.setPower(my_speed);
+        motor3.setPower(my_speed);
+
+        while (true) {
+            telemetry.addData("Motor0",  "getCurrentPosition: %3d",
+                    motor0.getCurrentPosition());
+            // Stop driving when Motor0 Encoder >= my_distance
+            if (motor0.getCurrentPosition() >= my_distance) {
+                motor0.setPower(0);
+                motor1.setPower(0);
+                motor2.setPower(0);
+                motor3.setPower(0);
+                break;
+            }
+        }
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
 
-            // POV Mode uses left stick to go forward, and right stick to turn.
-            // - This uses basic math to combine motions and is easier to drive straight.
-            double xAxis =  gamepad1.right_stick_x;
-            xAxisPower = 0.3 * Range.clip(xAxis, -1.0, 1.0) ;
-
-            // Tank Mode uses one stick to control each wheel.
-            // - This requires no math, but it is hard to drive forward slowly and keep straight.
-            // leftPower  = -gamepad1.left_stick_y ;
-            // rightPower = -gamepad1.right_stick_y ;
-
-            // Send calculated power to wheels
-            motor0.setPower(-xAxisPower);
-            motor1.setPower(xAxisPower);
-            motor2.setPower(xAxisPower);
-            motor3.setPower(-xAxisPower);
-
-            // Show the elapsed game time and wheel power.
-            telemetry.addData("Status", "Run Time: " + runtime.toString());
-            telemetry.addData("Motors", "(%.2f)", xAxis);
-            telemetry.update();
         }
     }
 }
