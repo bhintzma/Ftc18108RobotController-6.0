@@ -29,11 +29,17 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
+import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 
 
 /**
@@ -49,37 +55,17 @@ import com.qualcomm.robotcore.util.Range;
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
 
-@TeleOp(name="DriveStraightGyro", group="Linear Opmode")
+@TeleOp(name="Simple IMU", group="Linear Opmode")
 // @Disabled
-public class DriveStraightGyro extends LinearOpMode {
+public class Simple_Driving_IMU extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
-    private DcMotor motor0 = null;
-    private DcMotor motor1 = null;
-    private DcMotor motor2 = null;
-    private DcMotor motor3 = null;
+    private DcMotor motor0, motor1, motor2, motor3;
+    private BNO055IMU imu;
 
     @Override
     public void runOpMode() {
-
-        // Set up the parameters with which we will use our IMU. Note that integration
-        // algorithm here just reports accelerations to the logcat log; it doesn't actually
-        // provide positional information.
-        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
-        parameters.angleUnit           = BNO055IMU.AngleUnit.DEGREES;
-        parameters.accelUnit           = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
-        parameters.calibrationDataFile = "BNO055IMUCalibration.json"; // see the calibration sample opmode
-        parameters.loggingEnabled      = true;
-        parameters.loggingTag          = "IMU";
-        parameters.accelerationIntegrationAlgorithm = new JustLoggingAccelerationIntegrator();
-
-        // Retrieve and initialize the IMU. We expect the IMU to be attached to an I2C port
-        // on a Core Device Interface Module, configured to be a sensor of type "AdaFruit IMU",
-        // and named "imu".
-        imu = hardwareMap.get(BNO055IMU.class, "imu");
-        imu.initialize(parameters);
-
         telemetry.addData("Status", "Initialized");
         telemetry.update();
 
@@ -98,6 +84,33 @@ public class DriveStraightGyro extends LinearOpMode {
         motor2.setDirection(DcMotor.Direction.FORWARD);
         motor3.setDirection(DcMotor.Direction.REVERSE);
 
+        // Setup IMU configurations
+        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
+        parameters.mode                = BNO055IMU.SensorMode.IMU;
+        parameters.angleUnit           = BNO055IMU.AngleUnit.DEGREES;
+        parameters.accelUnit           = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
+        parameters.loggingEnabled = false;
+        parameters.loggingTag = "IMU";
+        imu = hardwareMap.get(BNO055IMU.class, "imu");
+        imu.initialize(parameters);
+        telemetry.addData("Mode", "IMU calibrating...");
+        telemetry.update();
+
+        // Make sure the IMU gyro is calibrated before continuing
+        while (!isStopRequested() && !imu.isGyroCalibrated()) {
+            sleep(50);
+            idle();
+        }
+
+        // Send telemetry message to indicate successful Encoder reset
+        telemetry.addData("Encoders:",  "M0: %3d  M1:%3d  M2:%3d  M3:%3d",
+                motor0.getCurrentPosition(),
+                motor1.getCurrentPosition(),
+                motor2.getCurrentPosition(),
+                motor3.getCurrentPosition());
+        telemetry.addData("IMU calib status", imu.getCalibrationStatus().toString());
+        telemetry.update();
+
         // Wait for the game to start (driver presses PLAY)
         waitForStart();
         runtime.reset();
@@ -105,60 +118,17 @@ public class DriveStraightGyro extends LinearOpMode {
         // Setup variables used during driving loop
         // Drive wheel power to set motor speed and display telemetry
         double wheelPower;
-        double leftPower;
-        double rightPower;
-        boolean toggleDriving; // True = Car Mode, False = Tank Mode
+        double leftPower, rightPower;
+        double drive, turn;
+        double gyroAngle;
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
 
-
-            def DriveStraightGyro(Speed, Distance);
-            // By: Ashelie Hintzman
-
-	        // Drive forward or backward at the Speed passed in for Distance (in Degrees) passed in
-	        // Use the Gyro angle to constantly correct steering to keep the bot on a straight line
-
-	        // Store the parameter values passed to this function in local variables
-            my_speed = Speed   // Store Speed parameter in local variable my_speed
-                    my_distance = Distance   // Store Distance in degrees in local variable my_distance
-
-	        // Store the starting Gyro angle and reset both LargeMotors to 0
-            start_gyro_angle = gs.angle
-            LWheel.position = 0
-            RWheel.position = 0
-
-            if my_speed >= 0:
-
-                // Start the loop for driving forward
-                while True:
-                    steering_correction = -1 * Kg * (gs.angle - start_gyro_angle)
-                    move_steering.on(steering_correction, my_speed)
-                    motor_average = (fabs(LWheel.position) + fabs(RWheel.position)) / 2
-
-                // Stop driving when the average of the degrees on both wheels is >= Distance
-                if (motor_average) >= my_distance:
-                WheelShutdown()
-                break
-
-    else:
-
-        # Start the loop for driving backward
-            while True:
-            steering_correction = Kg * (gs.angle - start_gyro_angle)
-            move_steering.on(steering_correction, my_speed)
-            motor_average = (fabs(LWheel.position) + fabs(RWheel.position)) / 2
-            # Stop driving when the average of the degrees on both wheels is >= Distance
-            if (motor_average) >= my_distance:
-            WheelShutdown()
-            break
-
-
-
             // POV Mode uses left stick to go forward, and right stick to turn.
             // - This uses basic math to combine motions and is easier to drive straight.
-            double drive =  gamepad1.left_stick_y;
-            double turn  =  -gamepad1.right_stick_x;
+            drive =  gamepad1.left_stick_y;
+            turn  =  -gamepad1.right_stick_x;
             leftPower    = 0.3 * Range.clip(drive + turn, -1.0, 1.0) ;
             rightPower   = 0.3 * Range.clip(drive - turn, -1.0, 1.0) ;
 
@@ -173,10 +143,17 @@ public class DriveStraightGyro extends LinearOpMode {
             motor2.setPower(leftPower);
             motor3.setPower(rightPower);
 
-            // Show the elapsed game time and wheel power.
+            gyroAngle = getAngle();
+
+            // Show the elapsed game time and wheel power and Gyro angle
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Motors", "left (%.2f), right (%.2f)", leftPower, rightPower);
+            telemetry.addData("Gyro Angle", "(%.2f)", gyroAngle);
             telemetry.update();
         }
+    }
+    private double getAngle() {
+        Orientation angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
+        return angles.firstAngle;
     }
 }
